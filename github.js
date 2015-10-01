@@ -432,9 +432,11 @@ GithubLocation.prototype = {
 
     var self = this;
 
-    if (packageConfig.dependencies && !packageConfig.registry && (!packageConfig.jspm || !packageConfig.jspm.dependencies)) {
+    if ((packageConfig.dependencies || packageConfig.peerDependencies) && !packageConfig.registry && (!packageConfig.jspm || !(packageConfig.jspm.dependencies || packageConfig.jspm.peerDependencies))) {
       var hasDependencies = false;
       for (var p in packageConfig.dependencies)
+        hasDependencies = true;
+      for (var p in packageConfig.peerDependencies)
         hasDependencies = true;
 
       if (packageName && hasDependencies) {
@@ -455,23 +457,29 @@ GithubLocation.prototype = {
 
         if (noDepsMsg) {
           delete packageConfig.dependencies;
+          delete packageConfig.peerDependencies;
           this.ui.log('warn', '`' + packageName + '` dependency installs skipped as it\'s a GitHub package with no registry property set.\n' + noDepsMsg + '\n');
         }
       }
       else {
         delete packageConfig.dependencies;
+        delete packageConfig.peerDependencies;
       }
     }
 
     // on GitHub, single package names ('jquery') are from jspm registry
     // double package names ('components/jquery') are from github registry
-    if (!packageConfig.registry) {
-      for (var d in packageConfig.dependencies) {
-        var depName = packageConfig.dependencies[d];
+    if (!packageConfig.registry || packageConfig.registry == 'github') {
+      for (var d in packageConfig.dependencies)
+        packageConfig.dependencies[d] = convertDependency(d, packageConfig.dependencies[d]);
+      for (var d in packageConfig.peerDependencies)
+        packageConfig.peerDependencies[d] = convertDependency(d, packageConfig.peerDependencies[d]);
+
+      function convertDependency(d, depName) {
         var depVersion;
 
         if (depName.indexOf(':') != -1)
-          continue;
+          return depName;
 
         if (depName.indexOf('@') != -1) {
           depName = depName.substr(0, depName.indexOf('@'));
@@ -483,7 +491,9 @@ GithubLocation.prototype = {
         }
 
         if (depName.split('/').length == 1)
-          packageConfig.dependencies[d] = 'jspm:' + depName + (depVersion && depVersion !== true ? '@' + depVersion : '');
+          return 'jspm:' + depName + (depVersion && depVersion !== true ? '@' + depVersion : '');
+
+        return depName;
       }
     }
     return packageConfig;

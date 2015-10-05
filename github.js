@@ -791,8 +791,9 @@ GithubLocation.prototype = {
       main = 'index'
       return checkMain(main, libDir);
     })
-    .then(function() {
-      packageConfig.main = main;
+    .then(function(hasMain) {
+      if (hasMain)
+        packageConfig.main = main;
       return packageConfig;
     });
   }
